@@ -1,7 +1,7 @@
 var express = require('express');
 var app = express();
 var server = require('http').createServer(app);
-var hostname = require('os').hostname();
+//var hostname = require('os').hostname();
 var mysql = require('mysql');
 var _ = require('underscore');
 
@@ -50,7 +50,7 @@ app.get('/', function(req, res) {
             connection.query('SELECT * FROM ComingSoonFilm', function( err, rows, fields) {
                 var movieString = rows.map(function(row) {
                     
-                    var hostname = 'http://' + server.address().address + ':' + server.address().port;
+                    var hostname = 'http://' + req.headers.host;
 
                     return [
                         '<tr>',
