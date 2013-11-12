@@ -43,15 +43,13 @@ function inference(query) {
 app.get('/', function(req, res) {
     res.header('Access-Control-Allow-Origin', '*');
     res.header('Access-Control-Allow-Headers', 'X-Requested-With');
+    var hostname = 'http://' + req.headers.host;
 
     // TRANSFORM req.query.q to check what does it mean
     switch ( inference(req.query.q) ) {
         case 'coming':
             connection.query('SELECT * FROM ComingSoonFilm', function( err, rows, fields) {
                 var movieString = rows.map(function(row) {
-                    
-                    var hostname = 'http://' + req.headers.host;
-
                     return [
                         '<tr>',
                             '<td>',
@@ -102,7 +100,6 @@ app.get('/', function(req, res) {
                 }
 
                 var movieDetailList = [];
-                var hostname = 'http://' + server.address().address + ':' + server.address().port;
 
                 for (var i = 0; i < movie.length; i++) {
                     var timeRows = movie[i].time.join(' ');
