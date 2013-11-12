@@ -1,0 +1,22 @@
+{
+  "name": "crawler",
+  "version": "0.0.0",
+  "description": "",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Ryan AS",
+  "license": "BSD",
+  "dependencies": {
+    "jsdom": "~0.8.8",
+    "htmlparser2": "~3.3.0",
+    "graceful-fs": "~2.0.1",
+    "node-mysql": "~0.3.4",
+    "mysql": "git://github.com/felixge/node-mysql",
+    "express": "~3.4.4",
+    "async": "~0.2.9",
+    "underscore": "~1.5.2"
+    "underscore.string": "~2.3.3"
+  }
+}
