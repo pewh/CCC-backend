@@ -5,6 +5,18 @@ _.mixin(_.str.exports());
 var q = require('./questions');
 var pos = require('./pos');
 
+function findNERIndexOnMetadata(metadata) {
+    var arr = _.pluck(metadata, 'ner');
+
+    if ( _.any(arr) ) {
+        for (var i = 0; i < arr.length; i++) {
+            if ( arr[i] ) {
+                return i;
+            }
+        }
+    }
+    return -1;
+}
 
 function tokenization( str ) {
     if ( _(str).endsWith('?') ) {
@@ -57,7 +69,7 @@ function containUnknownPOS(metadata) {
 }
 
 function PRE_FILM(token) {
-    return token === 'film';
+    return _.contains(['film'], token);
 }
 
 function PRE_ACTOR(token) {
@@ -105,37 +117,41 @@ function getMatchedRules( metadata ) {
         if ( !metadata[i].pos ) {
             rules[i].push(1);
 
-            if ( i && PRE_FILM( prevMetadata.token ) ) {
-                rules[i].push(2);
+            if ( i ) {
+            
+                if ( PRE_FILM( prevMetadata.word ) ) {
+                    rules[i].push(2);
+                }
+
+                if ( PRE_ACTOR( prevMetadata.word ) ) {
+                    rules[i].push(3);
+                }
+
+                if ( (prevMetadata.pos === 'VBa' || prevMetadata.pos === 'VBp') ) {
+                    rules[i].push(4);
+                }
+
+                if ( prevMetadata.pos === 'IN' ) {
+                    rules[i].push(5);
+                }
+
+                if ( prevMetadata.pos === 'PR' ) {
+                    rules[i].push(6);
+                }
+
+                if ( prevMetadata.entity ) {
+                    if ( prevMetadata.entity === 'film' ) {
+                        rules[i].push(8);
+                    } else if ( prevMetadata.entity === 'actor' ) {
+                        rules[i].push(9);
+                    }
+                }
             }
 
-            if ( i && PRE_ACTOR( prevMetadata.token ) ) {
-                rules[i].push(3);
-            }
-
-            if ( i && prevMetadata.pos === 'VBa' ) {
-                rules[i].push(4);
-            }
-
-            if ( i && prevMetadata.pos === 'VBp' ) {
-                rules[i].push(5);
-            }
-
-            if ( i && prevMetadata.pos === 'PR' ) {
-                rules[i].push(6);
-            }
-
-            if ( NUMBER( metadata[i].token ) ) {
+            if ( NUMBER( metadata[i].word ) ) {
                 rules[i].push(7);
             }
 
-            if ( i && prevMetadata.entity ) {
-                if ( prevMetadata.entity === 'film' ) {
-                    rules[i].push(8);
-                } else if ( prevMetadata.entity === 'actor' ) {
-                    rules[i].push(9);
-                }
-            }
         }
     }
 
@@ -167,14 +183,15 @@ function getMatchedRules( metadata ) {
 
 function predictNER(metadata) {
     var ner = getMatchedRules(metadata);
+    var processedMetadata = metadata;
 
     for (var i = 0; i < ner.length; i++) {
         if ( ner[i] ) {
-            metadata[i].ner = ner[i];
+            processedMetadata[i].ner = ner[i];
         }
     }
 
-    return embedNER(metadata);
+    return embedNER(processedMetadata);
 }
 
 String.prototype.extractMetadata = function() {
@@ -187,8 +204,12 @@ String.prototype.extractMetadata = function() {
                 pos: pos[token]
             };
         });
-
-        return containUnknownPOS(metadata) ? predictNER(metadata) : metadata;
+        //return containUnknownPOS(metadata) ? predictNER(metadata) : metadata;
+        if ( containUnknownPOS(metadata) ) {
+            return predictNER(metadata);
+        } else {
+            return metadata;
+        }
 
     }(this);
 }
@@ -245,45 +266,58 @@ function inference( metadata ) {
 
     if ( ! _.any( _.pluck(metadata, 'ner') ) ) {
         // not NER
-        console.log('aa');
         if ( _.contains(token, 'sedang') || _.contains(token, 'lagi') ) {
             return 'now';
         } else if ( _.contains(token, 'akan') ) {
             return 'coming';
         }
     } else {
-        var extractedNER = 'NER'; // TODO get it
+        var nerIndex = findNERIndexOnMetadata(metadata);
+        var entity = metadata[nerIndex].word;
 
-        if ( _.contains(token, 'film') ) {
+        // TODO still buggy on film n actor
+        if ( _.contains(token, 'siapa') || _.contains(token, 'aktor') || _.contains(token, 'pemain') ) {
             return {
-                type: 'title',
-                entity: extractedNER
-            };
-        } else if ( _.contains(token, 'siapa') || _.contains(token, 'aktor') || _.contains(token, 'pemain') ) {
-            return {
-                type: 'duration',
-                entity: extractedNER
+                find: 'name',
+                get: 'title',
+                type: 'Film',
+                entity: entity,
+                isList: true
             };
         } else if ( _.contains(token, 'kategori') || _.contains(token, 'genre') ||_.contains(token, 'jenis')  || _.contains(token, 'layak')  || _.contains(token, 'cocok')  || _.contains(token, 'boleh')  || _.contains(token, 'bisa') ) {
-            // TODO apa & siapa??
             return {
-                type: 'category',
-                entity: extractedNER
+                find: 'rating',
+                get: 'title',
+                type: 'Film',
+                entity: entity,
+                isList: false
             };
         } else if ( _.contains(token, 'durasi') || _.contains(token, 'lama') ) {
             return {
-                type: 'duration',
-                entity: extractedNER
+                find: 'duration',
+                get: 'title',
+                type: 'Film',
+                entity: entity,
+                isList: false
             };
         } else if ( _.contains(token, 'sinopsis') ) {
             return {
-                type: 'synopsis',
-                entity: extractedNER
+                find: 'synopsis',
+                get: 'title',
+                type: 'Film',
+                entity: entity,
+                isList: false
+            };
+        } else if ( _.contains(token, 'film') ) {
+            return {
+                find: 'title',
+                get: 'name',
+                type: 'Aktor',
+                entity: entity,
+                isList: true
             };
         }
     }
-
-    return false;
 }
 
 function processor( question ) {
@@ -294,6 +328,16 @@ function processor( question ) {
     }
 }
 
-console.log( processor("apa kategori dari film harry potter?"));
+function getPrefixQuestion( q ) {
+    var questions = q.extractMetadata();
+    var questionWithoutWH = _.reject(questions, function(question) {
+        return question.pos === 'WH' || question.word === 'saja';
+    });
+    var joinedPrefixQuestion = _.pluck(questionWithoutWH, 'word').join(' ');
+    var capitalizeFirstChar = _(joinedPrefixQuestion).capitalize();
+
+    return capitalizeFirstChar;
+}
 
 module.exports.processor = processor;
+module.exports.getPrefixQuestion = getPrefixQuestion;
